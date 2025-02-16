@@ -1,65 +1,77 @@
-import telepot
-import requests
-import zipfile
-import rarfile  # Si necesitas soporte para RAR
-import tarfile
+import gspread
+from google.oauth2.service_account import Credentials
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 import os
-import time
-from telepot.loop import MessageLoop
 
-# TOKEN de tu bot (reemplaza con el tuyo)
-TOKEN ="7501411396:AAFXv_unSqYDi9i_8ni85rOMHDsC93Xzbxw"
+# Ruta al archivo JSON de credenciales no se debe codificar aquí.
+CREDENTIALS_PATH = os.getenv("json.json")  # Se recomienda usar variables de entorno
 
-bot = telepot.Bot(TOKEN)
+# ID de la hoja de cálculo
+1-B5vl7z1PYtznEQB_23D3tVSIIrc-J7M2BS34Hguw3Q = os.getenv("1-B5vl7z1PYtznEQB_23D3tVSIIrc-J7M2BS34Hguw3Q")  # También debería estar en variable de entorno
 
-# Función para manejar mensajes
-def handler(msg):
-    msg_type, chat_type, chat_id = telepot.glance(msg)
+# Token del bot de Telegram
+BOT_TOKEN = os.getenv("7501411396:AAFXv_unSqYDi9i_8ni85rOMHDsC93Xzbxw")  # Se debe cargar desde la variable de entorno
 
-    if msg_type == 'text':
-        texto = msg['text']
+scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+creds = Credentials.from_service_account_file(CREDENTIALS_PATH, scopes=scopes)
+client = gspread.authorize(creds)
 
-        if texto.startswith('/descargar'):
-            # Obtener la URL del mensaje
-            url = texto.split(' ')[1]  # Asume que la URL está después del comando /descargar
+try:
+    sheet = client.open_by_key(1-B5vl7z1PYtznEQB_23D3tVSIIrc-J7M2BS34Hguw3Q)  # Abre la hoja de cálculo
+    print("Conexión a la hoja de cálculo exitosa.")
 
-            try:
-                # Descargar el archivo
-                response = requests.get(url, stream=True)
-                response.raise_for_status()  # Lanza una excepción si la descarga falla
+    # Función para manejar el comando /start
+    async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await update.message.reply_text("¡Hola! Soy tu bot de Telegram y puedo interactuar con tu hoja de cálculo.")
+        try:
+            worksheet = sheet.sheet1  # Obtener la primera hoja
+            cell_value = worksheet.cell(1, 1).value  # Leer la celda A1
+            await update.message.reply_text(f"El valor de la celda A1 es: {cell_value}")
+        except Exception as e:
+            await update.message.reply_text(f"Error al leer la hoja: {str(e)}")
 
-                # Guardar el archivo temporalmente
-                with open('archivo_descargado.zip', 'wb') as f:  # Ajusta la extensión según el tipo de archivo
-                    for chunk in response.iter_content(chunk_size=8192):
-                        f.write(chunk)
+    # Iniciar el bot
+    application = ApplicationBuilder().token(BOT_TOKEN).build()
 
-                # Descomprimir el archivo
-                if url.endswith('.zip'):
-                    with zipfile.ZipFile('archivo_descargado.zip', 'r') as zip_ref:
-                        zip_ref.extractall('archivos_descomprimidos')
-                # ... (Agregar soporte para otros tipos de archivos: rar, tar, etc.)
+    # Agrega un manejador para el comando /start
+    start_handler = CommandHandler('start', start)
+    application.add_handler(start_handler)
 
-                # Mostrar archivos y carpetas
-                mostrar_archivos(chat_id, 'archivos_descomprimidos')
+    application.run_polling()
 
-            except requests.exceptions.RequestException as e:
-                bot.sendMessage(chat_id, f"Error al descargar el archivo: {e}")
-            except Exception as e:
-                bot.sendMessage(chat_id, f"Error al procesar el archivo: {e}")
+except Exception as e:
+    print(f"Error general: {str(e)}")"
 
-# Función para mostrar archivos y carpetas
-def mostrar_archivos(chat_id, ruta):
-    archivos = os.listdir(ruta)
-    mensaje = "Archivos y carpetas:\n"
+scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+creds = Credentials.from_service_account_file(credentials_path, scopes=scopes)
+client = gspread.authorize(creds)
 
-    for archivo in archivos:
-        mensaje += f"- {archivo}\n"
+try:
+    sheet = client.open_by_key(1-B5vl7z1PYtznEQB_23D3tVSIIrc-J7M2BS34Hguw3Q)  # Abre la hoja de cálculo
+    print("Conexión a la hoja de cálculo exitosa.")
 
-    bot.sendMessage(chat_id, mensaje)
+    # Ejemplo de función para manejar un comando
+    def start(update: Update, context):
+        update.message.reply_text("¡Hola! Soy tu bot de Telegram y puedo interactuar con tu hoja de cálculo.")
+        try:
+           #Ejemplo de como leer datos
+           worksheet = sheet.sheet1 #Obtener la primera hoja
+           cell_value = worksheet.cell(1,1).value #Leer la celda A1
+           update.message.reply_text(f"El valor de la celda A1 es: {cell_value}")
+        except Exception as e:
+           update.message.reply_text(f"Error al leer la hoja: {e}")
 
-# Bucle principal del bot
-MessageLoop(bot, handler).run_as_thread()
+    # Iniciar el bot
+    application = ApplicationBuilder().token(BOT_TOKEN).build()
 
-while True:
-    time.sleep(10)
+    # Agrega un manejador para el comando /start
+    start_handler = CommandHandler('start', start)  # Crea un manejador para el comando /start
+    application.add_handler(start_handler)  # Agrega el manejador al bot
+
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+except Exception as e:
+    print(f"Error: {e}")
+
 
